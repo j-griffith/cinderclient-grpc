@@ -1,0 +1,28 @@
+syntax = "proto3";
+package attacher;
+
+service Attacher {
+  rpc Attach(AttachRequest) returns (AttachResponse){}
+  rpc Detach(DetachRequest) returns (DetachResponse){}
+}
+
+message AttachRequest {
+  // The Cinder UUID of the volume being attached
+  string id = 1;
+}
+
+message AttachResponse {
+  // The attach response including device path, type and wwn
+  // contents dependent on connection type
+  map<string, string> publish_info = 1;
+}
+
+message DetachRequest {
+  // The Cinder UUID of the volume to detach
+  string id = 1;
+}
+
+message DetachResponse {
+  // The status of the detach
+  string ok = 1;
+}
