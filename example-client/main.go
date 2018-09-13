@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"time"
 
@@ -10,8 +11,11 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial("unix:///tmp/grpc-example-socket", grpc.WithInsecure())
+	sock := flag.String("socket", "unix:///tmp/cinderattach-socket", "Socket to use for grpc connection.  To use tcp use the form: `<ip-address>:<port>`")
+	volumeUUID := flag.String("volume", "", "The UUID of the Cinder Volume to perform the local attach on.")
+	flag.Parse()
 
+	conn, err := grpc.Dial(*sock, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
@@ -20,7 +24,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.Attach(ctx, &pb.AttachRequest{Id: "foobar-volume"})
+	r, err := c.Attach(ctx, &pb.AttachRequest{Id: *volumeUUID})
 
 	if err != nil {
 		log.Fatalf("well that sucks: %v", err)

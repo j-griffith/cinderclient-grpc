@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"unicode"
@@ -48,7 +50,7 @@ func parseAttachOutput(o string) (map[string]string, error) {
 // Attach implements cinderattacher.AttachVolume
 func (s *server) Attach(ctx context.Context, in *pb.AttachRequest) (*pb.AttachResponse, error) {
 	fmt.Printf("issuing Attach request for volume id: %s\n", in.Id)
-	c := exec.Command("cinder", "local-attach", "--mount-path", "/dev/X", in.Id)
+	c := exec.Command("cinder", "local-attach", "--mountpoint", "/dev/x", in.Id)
 	out, err := c.CombinedOutput()
 	if err != nil {
 		fmt.Printf("error response from attach command: %s\n", out)
@@ -65,10 +67,25 @@ func (s *server) Detach(ctx context.Context, in *pb.DetachRequest) (*pb.DetachRe
 	fmt.Printf("Our attach request is for id: %s\n", in.Id)
 	return nil, nil
 }
+func parseSocket(arg string) ([]string, error) {
+	r := strings.Split(arg, ",")
+	if len(r) != 2 {
+		return nil, fmt.Errorf("invalid socket argument: %s", arg)
+	}
+	fmt.Printf("Using provided args to create the socket: Type=%s, Name=%s\n", r[0], r[1])
+	return r, nil
+}
+
 func main() {
-	// FIXME(jdg): If this main crashes it won't clean up the socket, need to figure that out
-	// also, maybe we should be using a tcp socket instead of a simple unix socket?
-	lis, err := net.Listen("unix", "/tmp/grpc-example-socket")
+	// Here be a BUG!  If using unix socket and you kill the server we're not cleaning up the socket file, need to figure that out
+	requestedSocket := flag.String("socket", "unix,/tmp/cinderattach-socket", "Socket to use for grpc connection.  To use tcp use the form: `tcp,<ip-address>:<port>`")
+	flag.Parse()
+	socket, err := parseSocket(*requestedSocket)
+	if err != nil {
+		fmt.Printf(err.Error())
+		os.Exit(1)
+	}
+	lis, err := net.Listen(socket[0], socket[1])
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
